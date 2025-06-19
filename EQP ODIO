@@ -1,0 +1,207 @@
+-- Carregar Rayfield Library
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+-- Criar a Janela
+local Window = Rayfield:CreateWindow({
+    Name = "MO ODIO Hub",
+    LoadingTitle = "MO ODIO",
+    LoadingSubtitle = "Feito com Rayfield",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "MO_ODIO", -- pasta no FileSystem
+        FileName = "Config"
+    },
+    Discord = {
+        Enabled = false
+    },
+    KeySystem = false
+})
+
+-- VariÃ¡veis
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+local Settings = {
+    Aimbot = false,
+    ESP = false,
+    Noclip = false,
+    Fly = false
+}
+
+-- === ABA DE COMBATE ===
+local CombatTab = Window:CreateTab("Combate", 4483362458)
+
+CombatTab:CreateToggle({
+    Name = "Ativar Aimbot",
+    CurrentValue = false,
+    Flag = "AimbotToggle",
+    Callback = function(Value)
+        Settings.Aimbot = Value
+    end,
+})
+
+CombatTab:CreateToggle({
+    Name = "Ativar ESP (Highlight)",
+    CurrentValue = false,
+    Flag = "ESPToggle",
+    Callback = function(Value)
+        Settings.ESP = Value
+    end,
+})
+
+-- === ABA DE MOVIMENTO ===
+local MovementTab = Window:CreateTab("Movimento", 4483362458)
+
+MovementTab:CreateToggle({
+    Name = "Ativar Noclip",
+    CurrentValue = false,
+    Flag = "NoclipToggle",
+    Callback = function(Value)
+        Settings.Noclip = Value
+    end,
+})
+
+MovementTab:CreateToggle({
+    Name = "Ativar Fly",
+    CurrentValue = false,
+    Flag = "FlyToggle",
+    Callback = function(Value)
+        Settings.Fly = Value
+    end,
+})
+-- === ABA DE EXTRAS ===
+local ExtrasTab = Window:CreateTab("Extras", 4483362458)
+
+ExtrasTab:CreateToggle({
+    Name = "Full Britishness ☕🇬🇧 (Clarear mapa)",
+    CurrentValue = false,
+    Flag = "BritishnessToggle",
+    Callback = function(Value)
+        local lighting = game:GetService("Lighting")
+        
+        if Value then
+            -- Clarear o mapa
+            lighting.ClockTime = 14 -- meio-dia
+            lighting.Brightness = 3
+            lighting.FogEnd = 100000
+            lighting.GlobalShadows = false
+            lighting.Ambient = Color3.fromRGB(255, 255, 255)
+            lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+        else
+            -- Restaurar iluminação padrão
+            lighting.ClockTime = 18
+            lighting.Brightness = 2
+            lighting.FogEnd = 1000
+            lighting.GlobalShadows = true
+            lighting.Ambient = Color3.fromRGB(127, 127, 127)
+            lighting.OutdoorAmbient = Color3.fromRGB(127, 127, 127)
+        end
+    end,
+})
+-- === LÃ“GICAS DAS FUNÃ‡Ã•ES ===
+
+-- Noclip
+RunService.Stepped:Connect(function()
+    if Settings.Noclip and LocalPlayer.Character then
+        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- Fly
+local flying = false
+local BodyGyro, BodyVelocity
+
+RunService.Heartbeat:Connect(function()
+    if Settings.Fly and LocalPlayer.Character and not flying then
+        flying = true
+        local root = LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+        BodyGyro = Instance.new("BodyGyro", root)
+        BodyVelocity = Instance.new("BodyVelocity", root)
+        BodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
+        BodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
+    elseif not Settings.Fly and flying then
+        flying = false
+        if BodyGyro then BodyGyro:Destroy() end
+        if BodyVelocity then BodyVelocity:Destroy() end
+    end
+
+    if flying and LocalPlayer.Character then
+        local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local camCF = Camera.CFrame
+        local direction = Vector3.new()
+
+        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.W) then
+            direction = direction + camCF.LookVector
+        end
+        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.S) then
+            direction = direction - camCF.LookVector
+        end
+        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.A) then
+            direction = direction - camCF.RightVector
+        end
+        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.D) then
+            direction = direction + camCF.RightVector
+        end
+
+        if BodyVelocity then
+            BodyVelocity.Velocity = direction.Unit * 50
+        end
+        if BodyGyro then
+            BodyGyro.CFrame = camCF
+        end
+    end
+end)
+
+-- ESP (Highlight)
+local highlights = {}
+RunService.RenderStepped:Connect(function()
+    if Settings.ESP then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and not highlights[player] then
+                local highlight = Instance.new("Highlight")
+                highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                highlight.OutlineColor = Color3.new(1, 1, 1)
+                highlight.FillTransparency = 0.5
+                highlight.Adornee = player.Character
+                highlight.Parent = player.Character
+                highlights[player] = highlight
+            end
+        end
+    else
+        for player, highlight in pairs(highlights) do
+            if highlight then
+                highlight:Destroy()
+            end
+        end
+        highlights = {}
+    end
+end)
+
+-- Aimbot simples
+RunService.RenderStepped:Connect(function()
+    if Settings.Aimbot then
+        local closest = nil
+        local shortest = math.huge
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+                local headPos = Camera:WorldToScreenPoint(player.Character.Head.Position)
+                local mousePos = UserInputService:GetMouseLocation()
+                local dist = (Vector2.new(headPos.X, headPos.Y) - mousePos).Magnitude
+                if dist < shortest and headPos.Z > 0 then
+                    shortest = dist
+                    closest = player
+                end
+            end
+        end
+
+        if closest and closest.Character and closest.Character:FindFirstChild("Head") then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, closest.Character.Head.Position)
+        end
+    end
+end)
